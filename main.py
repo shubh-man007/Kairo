@@ -1,4 +1,5 @@
 import streamlit as st
+from src.ui.dashboard import main as dashboard_main
 
 st.set_page_config(
     page_title="Kairo",
@@ -6,8 +7,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
-from src.ui.dashboard import main as dashboard_main
 
 if __name__ == "__main__":
     dashboard_main()

@@ -31,21 +31,16 @@ ENV/
 *.swo
 *~
 
-# Logs
 logs/
 *.log
 
-# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# OS
 .DS_Store
 Thumbs.db
 
-# Project specific
 data/results/
 *.json.bak
-
