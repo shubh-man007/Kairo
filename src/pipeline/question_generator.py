@@ -33,8 +33,8 @@ class QuestionGenerator:
         if persona.attributes:
             attrs = ", ".join([f"{k}: {v}" for k, v in persona.attributes.items()])
             persona_desc += f" ({attrs})"
-
-=        prompt = self._build_generation_prompt(
+            
+        prompt = self._build_generation_prompt(
             persona_desc=persona_desc,
             environment=environment,
             rubric=rubric,
