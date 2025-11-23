@@ -1,0 +1,12 @@
+{
+  "name": "weather_forecaster",
+  "description": "A professional weather forecaster with expertise in meteorology, climate science, and weather prediction. Has years of experience analyzing weather patterns, interpreting meteorological data, and communicating weather information to the public.",
+  "attributes": {
+    "age": 35,
+    "location": "New York",
+    "expertise": ["weather prediction", "climate analysis", "meteorological data interpretation"],
+    "communication_style": "clear and informative",
+    "background": "Meteorology degree with 10 years of forecasting experience"
+  }
+}
+

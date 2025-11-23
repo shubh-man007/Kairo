@@ -1,0 +1,53 @@
+[
+  {
+    "name": "weather_forecast",
+    "description": "Environment for weather forecasting scenarios where the persona needs to predict and communicate weather conditions",
+    "domain": "weather"
+  },
+  {
+    "name": "storm_preparation",
+    "description": "Environment for preparing for severe weather events like hurricanes, tornadoes, or blizzards",
+    "domain": "weather"
+  },
+  {
+    "name": "agricultural_weather",
+    "description": "Environment for weather-related agricultural decisions like planting, harvesting, and irrigation",
+    "domain": "weather"
+  },
+  {
+    "name": "aviation_weather",
+    "description": "Environment for weather conditions affecting aviation, flight planning, and air travel",
+    "domain": "weather"
+  },
+  {
+    "name": "outdoor_events",
+    "description": "Environment for weather considerations in planning outdoor events, sports, or activities",
+    "domain": "weather"
+  },
+  {
+    "name": "climate_analysis",
+    "description": "Environment for analyzing long-term climate patterns, trends, and climate change impacts",
+    "domain": "weather"
+  },
+  {
+    "name": "emergency_response",
+    "description": "Environment for weather-related emergency response and disaster management scenarios",
+    "domain": "weather"
+  },
+  {
+    "name": "daily_planning",
+    "description": "Environment for using weather information in daily life planning, clothing choices, and activities",
+    "domain": "weather"
+  },
+  {
+    "name": "marine_weather",
+    "description": "Environment for weather conditions affecting maritime activities, sailing, and coastal areas",
+    "domain": "weather"
+  },
+  {
+    "name": "seasonal_transitions",
+    "description": "Environment for understanding and adapting to seasonal weather changes and transitions",
+    "domain": "weather"
+  }
+]
+
