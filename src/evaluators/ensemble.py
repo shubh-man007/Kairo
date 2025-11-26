@@ -17,7 +17,7 @@ class EnsembleEvaluator(BaseEvaluator):
         if len(evaluators) < 1:
             raise ValueError("At least one evaluator is required")
         self.evaluators = evaluators
-        logger.info(f"Initialized ensemble with {len(evaluators)} evaluators")
+        self._last_details = []
 
     def evaluate(
         self,
@@ -28,13 +28,10 @@ class EnsembleEvaluator(BaseEvaluator):
         score_examples: Optional[dict[int, str]] = None,
     ) -> float:
 
-        logger.info(
-            f"Ensemble evaluation for persona={persona.name}, "
-            f"task={rubric.task_name}, using {len(self.evaluators)} evaluators"
-        )
-
         scores = []
+        details = []
         for i, evaluator in enumerate(self.evaluators, 1):
+            evaluator_name = evaluator.get_display_name()
             try:
                 score = evaluator.evaluate(
                     persona=persona,
@@ -44,17 +41,20 @@ class EnsembleEvaluator(BaseEvaluator):
                     score_examples=score_examples,
                 )
                 scores.append(score)
-                logger.info(f"Evaluator {i} score: {score:.2f}")
+                details.append({"name": evaluator_name, "score": score})
             except Exception as e:
                 logger.warning(f"Evaluator {i} failed: {e}, skipping")
+                details.append({"name": evaluator_name, "error": str(e)})
 
+        self._last_details = details
         if not scores:
             logger.error("All evaluators failed, returning default score")
+            self._last_details.append(
+                {"name": "EnsembleEvaluator", "score": 3.0, "note": "default fallback"}
+            )
             return 3.0  # Default middle score
 
         avg_score = sum(scores) / len(scores)
-        logger.info(f"Ensemble average score: {avg_score:.2f} (from {len(scores)} evaluators)")
-
         return avg_score
 
     def get_individual_scores(
@@ -66,20 +66,15 @@ class EnsembleEvaluator(BaseEvaluator):
         score_examples: Optional[dict[int, str]] = None,
     ) -> List[float]:
     
+        if not self._last_details:
+            return []
+
         scores = []
-        for evaluator in self.evaluators:
-            try:
-                score = evaluator.evaluate(
-                    persona=persona,
-                    question=question,
-                    response=response,
-                    rubric=rubric,
-                    score_examples=score_examples,
-                )
-                scores.append(score)
-            except Exception as e:
-                logger.warning(f"Evaluator failed: {e}")
-                scores.append(None)  # Use None to indicate failure
+        for detail in self._last_details:
+            scores.append(detail.get("score"))
 
         return scores
+
+    def get_last_evaluation_details(self):
+        return [detail.copy() for detail in self._last_details]
 

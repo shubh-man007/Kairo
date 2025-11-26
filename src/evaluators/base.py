@@ -30,3 +30,11 @@ class BaseEvaluator(ABC):
 
         pass
 
+    def get_display_name(self) -> str:
+        """Name used in logs; override when an evaluator wraps an LLM client."""
+        return self.__class__.__name__
+
+    def get_last_evaluation_details(self):
+        """Optional per-evaluator metadata for the most recent evaluation."""
+        return None
+

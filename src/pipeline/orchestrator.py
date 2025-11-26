@@ -66,10 +66,8 @@ class EvaluationOrchestrator:
         
         if agent:
             self.agent_generator = None
-            logger.info("Using provided BaseAgent instance")
         else:
             self.agent_generator = AgentGenerator(llm_client=agent_client)
-            logger.info("Using AgentGenerator with LLM client")
         
         self.example_generator = ExampleGenerator(
             llm_client=self.example_generator_client
@@ -83,8 +81,6 @@ class EvaluationOrchestrator:
             TASK_NAMES[4]: ActionJustificationRubric(),
         }
 
-        logger.info("Initialized EvaluationOrchestrator")
-
     def evaluate_persona(
         self,
         persona: Persona,
@@ -92,22 +88,16 @@ class EvaluationOrchestrator:
         num_questions_per_task: Optional[int] = None,
     ) -> List[EvaluationResult]:
         
-        logger.info(f"Starting evaluation for persona: {persona.name}")
-
         if num_environments:
             self.environment_selector.num_environments = num_environments
 
         selected_environments = self.environment_selector.select_environments(persona)
-        logger.info(f"Selected {len(selected_environments)} environments")
 
         all_results = []
 
         for environment in selected_environments:
-            logger.info(f"Processing environment: {environment.name}")
-
             for task_name in TASK_NAMES:
                 rubric = self.rubrics[task_name]
-                logger.info(f"Processing task: {task_name}")
 
                 if num_questions_per_task:
                     self.question_generator.num_questions_per_task = (
@@ -160,6 +150,13 @@ class EvaluationOrchestrator:
                     )
                     task_scores.append(task_score)
 
+                    self._log_evaluation_step(
+                        persona=persona,
+                        task_name=task_name,
+                        question_text=question.text,
+                        response_text=response.text,
+                    )
+
                     result = EvaluationResult(
                         question_text=question.text,
                         response_text=response.text,
@@ -169,9 +166,6 @@ class EvaluationOrchestrator:
                     )
                     all_results.append(result)
 
-        logger.info(
-            f"Completed evaluation: {len(all_results)} results for {persona.name}"
-        )
         return all_results
 
     def evaluate_persona_with_score(
@@ -193,4 +187,29 @@ class EvaluationOrchestrator:
         )
 
         return results, persona_score
+
+    def _log_evaluation_step(
+        self,
+        persona: Persona,
+        task_name: str,
+        question_text: str,
+        response_text: str,
+    ):
+        logger.info("Question + Task: %s | %s", question_text, task_name)
+        logger.info("Persona Response: %s", response_text)
+        logger.info("Persona: %s", persona.name)
+
+        details = None
+        get_details = getattr(self.evaluator, "get_last_evaluation_details", None)
+        if callable(get_details):
+            details = get_details()
+
+        if details:
+            for detail in details:
+                name = detail.get("name", "Evaluator")
+                if detail.get("score") is not None:
+                    logger.info("%s: %.2f", name, detail["score"])
+                elif detail.get("error"):
+                    logger.info("%s: error - %s", name, detail["error"])
+        logger.info("")
 

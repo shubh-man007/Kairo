@@ -29,7 +29,7 @@ class LLMClientFactory:
             )
 
         client_class = cls._providers[provider]
-        logger.info(f"Creating {provider} client with model: {model}")
+        # logger.info(f"Creating {provider} client with model: {model}")
 
         if provider == "openai":
             return client_class(model=model, temperature=temperature, api_key=api_key)

@@ -37,3 +37,7 @@ class BaseLLMClient(ABC):
             "provider": self.__class__.__name__,
         }
 
+    def get_display_name(self) -> str:
+        """Human-friendly identifier for logging."""
+        return f"{self.__class__.__name__} ({self.model})"
+

@@ -939,7 +939,6 @@ class SimpleLogCollector(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
         self.logs.append(msg)
-        print(msg, flush=True)  # Also print to console
     
     def get_logs(self):
         return self.logs.copy()
@@ -950,10 +949,7 @@ class SimpleLogCollector(logging.Handler):
 # Global collector
 LOG_COLLECTOR = SimpleLogCollector()
 LOG_COLLECTOR.setLevel(logging.INFO)
-LOG_COLLECTOR.setFormatter(logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-))
+LOG_COLLECTOR.setFormatter(logging.Formatter("%(message)s"))
 
 # -----------------------------------------------
 # Session State Init
@@ -1107,26 +1103,17 @@ def render_live_logs():
 # -----------------------------------------------
 def evaluation_worker(persona, environments, num_envs, num_questions):
     try:
-        logger.info("=" * 80)
-        logger.info("STARTING EVALUATION")
-        logger.info(f"Persona: {persona.name}")
-        logger.info("=" * 80)
-
         settings = get_settings()
 
-        logger.info("Initializing LLM clients...")
         generator_client = create_llm_client("openai", settings.generator_model, temperature=0.9)
         agent_client = create_llm_client("openai", settings.generator_model, temperature=settings.generator_temperature)
 
-        logger.info("Initializing weather agent...")
         weather_agent = WeatherAgent(llm_client=agent_client)
 
-        logger.info("Initializing evaluators...")
         evaluator1 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_1, temperature=0.0))
         evaluator2 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_2, temperature=0.0))
         ensemble = EnsembleEvaluator([evaluator1, evaluator2])
 
-        logger.info("Creating orchestrator...")
         orchestrator = EvaluationOrchestrator(
             generator_client=generator_client,
             agent_client=agent_client,
@@ -1135,7 +1122,6 @@ def evaluation_worker(persona, environments, num_envs, num_questions):
             agent=weather_agent,
         )
 
-        logger.info("Running evaluation...")
         results, persona_score = orchestrator.evaluate_persona_with_score(
             persona=persona,
             num_environments=num_envs,
@@ -1145,10 +1131,6 @@ def evaluation_worker(persona, environments, num_envs, num_questions):
         st.session_state.evaluation_results = results
         st.session_state.persona_score = persona_score
         st.session_state.evaluation_error = None
-
-        logger.info("=" * 80)
-        logger.info(f"COMPLETED! Score: {persona_score.overall_score:.2f}")
-        logger.info("=" * 80)
 
     except Exception as e:
         logger.error(f"EVALUATION FAILED: {str(e)}", exc_info=True)
@@ -1182,6 +1164,12 @@ def main():
     if LOG_COLLECTOR not in root.handlers:
         root.addHandler(LOG_COLLECTOR)
         root.setLevel(logging.INFO)
+        simple_formatter = logging.Formatter("%(message)s")
+        for handler in root.handlers:
+            if handler is LOG_COLLECTOR:
+                continue
+            if isinstance(handler, logging.StreamHandler):
+                handler.setFormatter(simple_formatter)
     
     init_session_state()
 

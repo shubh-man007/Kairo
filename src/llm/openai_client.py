@@ -24,7 +24,7 @@ class OpenAIClient(BaseLLMClient):
 
         super().__init__(model=model, temperature=temperature, api_key=api_key)
         self.client = OpenAI(api_key=api_key)
-        logger.info(f"Initialized OpenAI client with model: {model}")
+        # logger.info(f"Initialized OpenAI client with model: {model}")
 
     def generate(
         self,

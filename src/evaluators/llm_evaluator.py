@@ -15,6 +15,9 @@ class LLMEvaluator(BaseEvaluator):
         self.llm_client = llm_client
         self.settings = get_settings()
 
+    def get_display_name(self) -> str:
+        return self.llm_client.get_display_name()
+
     def evaluate(
         self,
         persona: Persona,
@@ -23,11 +26,6 @@ class LLMEvaluator(BaseEvaluator):
         rubric: BaseRubric,
         score_examples: Optional[dict[int, str]] = None,
     ) -> float:
-
-        logger.info(
-            f"Evaluating response for persona={persona.name}, "
-            f"task={rubric.task_name}"
-        )
 
         prompt = rubric.format_evaluation_prompt(
             persona=persona,
@@ -45,7 +43,6 @@ class LLMEvaluator(BaseEvaluator):
 
             score = self._extract_score(evaluation_text)
 
-            logger.info(f"Extracted score: {score}")
             return score
 
         except Exception as e:
