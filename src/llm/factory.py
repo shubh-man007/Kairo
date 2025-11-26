@@ -13,6 +13,36 @@ class LLMClientFactory:
         "anthropic": AnthropicClient,
     }
 
+    @staticmethod
+    def _infer_provider_from_model(model: str) -> Optional[str]:
+        """
+        Best‑effort detection of the provider from a model name.
+
+        This is intentionally conservative – it only returns a provider when
+        the mapping is very clear (e.g. 'claude-*' → Anthropic,
+        'gpt-*' / 'gpt-4o*' → OpenAI). Otherwise it returns None and lets
+        the explicit provider win.
+        """
+        if not model:
+            return None
+
+        m = model.lower()
+
+        # Anthropic models are all "claude-*" today
+        if "claude" in m:
+            return "anthropic"
+
+        # Common OpenAI chat / reasoning / embedding models
+        if m.startswith("gpt-") or "gpt-" in m:
+            return "openai"
+        if m.startswith("o") and ("mini" in m or "preview" in m or "latest" in m):
+            # e.g. "o3-mini", "o1-preview" – avoid being too clever otherwise
+            return "openai"
+        if "text-embedding" in m or "embedding" in m:
+            return "openai"
+
+        return None
+
     @classmethod
     def create(
         cls,
@@ -21,12 +51,25 @@ class LLMClientFactory:
         temperature: float = 0.0,
         api_key: Optional[str] = None,
     ) -> BaseLLMClient:
-        
+
         provider = provider.lower()
         if provider not in cls._providers:
             raise ValueError(
                 f"Unsupported provider: {provider}. Supported: {list(cls._providers.keys())}"
             )
+
+        # Try to detect obvious provider/model mismatches early, before we ever
+        # hit a provider API with an incompatible model name.
+        if model:
+            inferred = cls._infer_provider_from_model(model)
+            if inferred is not None and inferred != provider:
+                raise ValueError(
+                    f"Model '{model}' appears to be a '{inferred}' model, "
+                    f"but provider '{provider}' was requested. "
+                    "Please align the model and provider in your settings "
+                    "(e.g. use an OpenAI model for provider='openai' and "
+                    "a Claude model for provider='anthropic')."
+                )
 
         client_class = cls._providers[provider]
         # logger.info(f"Creating {provider} client with model: {model}")

@@ -24,6 +24,20 @@ class OpenAIClient(BaseLLMClient):
 
         super().__init__(model=model, temperature=temperature, api_key=api_key)
         self.client = OpenAI(api_key=api_key)
+
+        # Proactively verify that the model exists and is accessible for this key.
+        try:
+            # This is a very cheap metadata call compared to a full completion.
+            self.client.models.retrieve(model)
+        except Exception as e:
+            logger.error(
+                f"OpenAI model validation failed for '{model}'. "
+                f"Make sure the model name is correct and your API key has access. "
+                f"Original error: {e}"
+            )
+            # Re-raise to fail fast before any evaluation logic runs.
+            raise
+
         # logger.info(f"Initialized OpenAI client with model: {model}")
 
     def generate(

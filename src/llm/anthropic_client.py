@@ -25,6 +25,25 @@ class AnthropicClient(BaseLLMClient):
 
         super().__init__(model=model, temperature=temperature, api_key=api_key)
         self.client = Anthropic(api_key=api_key)
+
+        # Proactively verify that the model exists and is accessible for this key.
+        try:
+            models = self.client.models.list()
+            available_ids = {m.id for m in models.data}
+            if model not in available_ids:
+                raise ValueError(
+                    f"Anthropic model '{model}' is not available or not accessible "
+                    "for the provided API key."
+                )
+        except Exception as e:
+            logger.error(
+                f"Anthropic model validation failed for '{model}'. "
+                f"Make sure the model name is correct and your API key has access. "
+                f"Original error: {e}"
+            )
+            # Re-raise to fail fast before any evaluation logic runs.
+            raise
+
         logger.info(f"Initialized Anthropic client with model: {model}")
 
     def generate(
