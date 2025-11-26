@@ -527,6 +527,7 @@
 
 """Streamlit dashboard for Kairo Evaluation Platform (Professional Edition)."""
 
+'''
 import sys
 import json
 import time
@@ -894,6 +895,351 @@ def main():
 
     st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
+
+if __name__ == "__main__":
+    main()
+    
+'''
+import sys
+import json
+import time
+from pathlib import Path
+from typing import Optional, List, Dict, Any
+import streamlit as st
+from datetime import datetime
+import logging
+import threading
+
+# -----------------------------------------------
+# Add project root to path
+# -----------------------------------------------
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from src.models import Persona, Environment, Question, AgentResponse, EvaluationResult, PersonaScore
+from src.pipeline import EvaluationOrchestrator
+from src.agents import WeatherAgent
+from src.evaluators import LLMEvaluator, EnsembleEvaluator
+from src.llm import create_llm_client
+from src.config import get_settings
+from src.utils.logging import setup_logging, get_logger
+
+# Setup logging
+setup_logging()
+logger = get_logger(__name__)
+
+# -----------------------------------------------
+# Simple Log Collector
+# -----------------------------------------------
+class SimpleLogCollector(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.logs = []
+    
+    def emit(self, record):
+        msg = self.format(record)
+        self.logs.append(msg)
+        print(msg, flush=True)  # Also print to console
+    
+    def get_logs(self):
+        return self.logs.copy()
+    
+    def clear(self):
+        self.logs.clear()
+
+# Global collector
+LOG_COLLECTOR = SimpleLogCollector()
+LOG_COLLECTOR.setLevel(logging.INFO)
+LOG_COLLECTOR.setFormatter(logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+))
+
+# -----------------------------------------------
+# Session State Init
+# -----------------------------------------------
+def init_session_state():
+    defaults = {
+        "evaluation_running": False,
+        "evaluation_thread": None,
+        "evaluation_results": [],
+        "persona_score": None,
+        "evaluation_error": None,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+# -----------------------------------------------
+# Loaders
+# -----------------------------------------------
+def load_persona(file_path: Path) -> Persona:
+    with open(file_path, "r", encoding="utf-8") as f:
+        return Persona(**json.load(f))
+
+def load_environments(file_path: Path) -> List[Environment]:
+    with open(file_path, "r", encoding="utf-8") as f:
+        return [Environment(**env) for env in json.load(f)]
+
+# -----------------------------------------------
+# Sidebar Config
+# -----------------------------------------------
+def render_config_panel():
+    st.sidebar.header("⚙️ Configuration")
+    settings = get_settings()
+
+    st.sidebar.subheader("Model Settings")
+    st.sidebar.text(f"Generator: {settings.generator_model}")
+    st.sidebar.text(f"Evaluator 1: {settings.evaluator_model_1}")
+    st.sidebar.text(f"Evaluator 2: {settings.evaluator_model_2}")
+
+    st.sidebar.divider()
+
+    num_environments = st.sidebar.slider("Environments per Persona", 1, 10, 2)
+    num_questions = st.sidebar.slider("Questions per Task", 1, 10, 2)
+
+    st.sidebar.divider()
+
+    import os
+    st.sidebar.subheader("🔑 API Keys")
+    st.sidebar.text(f"OpenAI: {'✅' if settings.openai_api_key else '❌'}")
+    st.sidebar.text(f"Anthropic: {'✅' if settings.anthropic_api_key else '❌'}")
+    st.sidebar.text(f"AccuWeather: {'✅' if os.getenv('ACCUWEATHER_API_KEY') else '❌'}")
+
+    st.sidebar.divider()
+    refresh_rate = st.sidebar.slider("Refresh Rate (sec)", 1, 10, 2)
+
+    return num_environments, num_questions, refresh_rate
+
+# -----------------------------------------------
+# Rendering
+# -----------------------------------------------
+def render_persona_info(persona: Persona):
+    st.header("👤 Persona Overview")
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.subheader(persona.name)
+        st.write(persona.description)
+        if persona.attributes:
+            st.write("**Attributes:**")
+            for k, v in persona.attributes.items():
+                st.write(f"- {k}: {v}")
+
+    with col2:
+        if st.session_state.evaluation_running:
+            st.metric("Status", "🔄 Running")
+        elif st.session_state.evaluation_error:
+            st.metric("Status", "❌ Failed")
+        elif st.session_state.evaluation_results:
+            st.metric("Status", "✅ Complete")
+        else:
+            st.metric("Status", "⏸️ Ready")
+
+def render_results_dashboard(persona_score: Optional[PersonaScore], results):
+    st.header("📊 Evaluation Results")
+
+    if not persona_score:
+        st.info("Run an evaluation to see results.")
+        return
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Overall Score", f"{persona_score.overall_score:.2f}")
+    with col2:
+        st.metric("Total Questions", persona_score.total_questions)
+    with col3:
+        st.metric("Total Evaluations", persona_score.total_evaluations)
+    with col4:
+        avg_per_task = persona_score.overall_score / len(persona_score.task_averages) if persona_score.task_averages else 0
+        st.metric("Average per Task", f"{avg_per_task:.2f}")
+
+    st.divider()
+
+    if persona_score.task_averages:
+        import pandas as pd
+        import plotly.express as px
+
+        df = pd.DataFrame({
+            "Task": [t.replace("_", " ").title() for t in persona_score.task_averages],
+            "Score": list(persona_score.task_averages.values())
+        })
+
+        fig = px.bar(df, x="Task", y="Score", range_y=[0, 5], 
+                     title="Task Performance", color="Score")
+        st.plotly_chart(fig, use_container_width=True)
+
+    results_data = []
+    for result in results:
+        for t in result.task_scores:
+            results_data.append({
+                "Question": result.question_text[:80] + "..." if len(result.question_text) > 80 else result.question_text,
+                "Task": t.task_type.replace("_", " ").title(),
+                "Score": t.score,
+                "Environment": result.environment_name.replace("_", " ").title()
+            })
+
+    if results_data:
+        import pandas as pd
+        st.dataframe(pd.DataFrame(results_data), use_container_width=True, height=300)
+
+def render_live_logs():
+    st.header("📋 Live Evaluation Logs")
+    
+    all_logs = LOG_COLLECTOR.get_logs()
+    log_text = "\n".join(all_logs) if all_logs else "No logs yet. Click 'Start Evaluation' to begin."
+    
+    st.text_area("Logs", value=log_text, height=400, disabled=True, label_visibility="collapsed")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.caption(f"📝 {len(all_logs)} lines")
+    with col2:
+        if all_logs:
+            st.caption(f"🕐 {datetime.now().strftime('%H:%M:%S')}")
+    with col3:
+        if st.button("🗑️ Clear", key="clear_logs"):
+            LOG_COLLECTOR.clear()
+            st.rerun()
+
+# -----------------------------------------------
+# Evaluation Worker
+# -----------------------------------------------
+def evaluation_worker(persona, environments, num_envs, num_questions):
+    try:
+        logger.info("=" * 80)
+        logger.info("STARTING EVALUATION")
+        logger.info(f"Persona: {persona.name}")
+        logger.info("=" * 80)
+
+        settings = get_settings()
+
+        logger.info("Initializing LLM clients...")
+        generator_client = create_llm_client("openai", settings.generator_model, temperature=0.9)
+        agent_client = create_llm_client("openai", settings.generator_model, temperature=settings.generator_temperature)
+
+        logger.info("Initializing weather agent...")
+        weather_agent = WeatherAgent(llm_client=agent_client)
+
+        logger.info("Initializing evaluators...")
+        evaluator1 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_1, temperature=0.0))
+        evaluator2 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_2, temperature=0.0))
+        ensemble = EnsembleEvaluator([evaluator1, evaluator2])
+
+        logger.info("Creating orchestrator...")
+        orchestrator = EvaluationOrchestrator(
+            generator_client=generator_client,
+            agent_client=agent_client,
+            evaluator=ensemble,
+            environment_pool=environments,
+            agent=weather_agent,
+        )
+
+        logger.info("Running evaluation...")
+        results, persona_score = orchestrator.evaluate_persona_with_score(
+            persona=persona,
+            num_environments=num_envs,
+            num_questions_per_task=num_questions
+        )
+
+        st.session_state.evaluation_results = results
+        st.session_state.persona_score = persona_score
+        st.session_state.evaluation_error = None
+
+        logger.info("=" * 80)
+        logger.info(f"COMPLETED! Score: {persona_score.overall_score:.2f}")
+        logger.info("=" * 80)
+
+    except Exception as e:
+        logger.error(f"EVALUATION FAILED: {str(e)}", exc_info=True)
+        st.session_state.evaluation_error = str(e)
+    finally:
+        st.session_state.evaluation_running = False
+        st.session_state.evaluation_thread = None
+
+def start_evaluation(persona, environments, num_envs, num_questions):
+    st.session_state.evaluation_results = []
+    st.session_state.persona_score = None
+    st.session_state.evaluation_error = None
+    LOG_COLLECTOR.clear()
+    
+    st.session_state.evaluation_running = True
+    
+    thread = threading.Thread(
+        target=evaluation_worker,
+        args=(persona, environments, num_envs, num_questions),
+        daemon=True
+    )
+    thread.start()
+    st.session_state.evaluation_thread = thread
+
+# -----------------------------------------------
+# Main
+# -----------------------------------------------
+def main():
+    # Add collector to root logger once
+    root = logging.getLogger()
+    if LOG_COLLECTOR not in root.handlers:
+        root.addHandler(LOG_COLLECTOR)
+        root.setLevel(logging.INFO)
+    
+    init_session_state()
+
+    st.title("🌤️ Kairo Evaluation Platform")
+    st.caption("Dynamic LLM Agent Evaluation Dashboard")
+    st.divider()
+
+    # Load data
+    data_dir = project_root / "data"
+    persona = load_persona(data_dir / "personas" / "weather_persona.json")
+    environments = load_environments(data_dir / "environments" / "weather_environments.json")
+
+    # Config
+    num_envs, num_questions, refresh_rate = render_config_panel()
+
+    # Persona
+    render_persona_info(persona)
+    st.divider()
+
+    # Controls
+    col1, col2, col3 = st.columns([1, 1, 2])
+    with col1:
+        if st.button("▶️ Start", disabled=st.session_state.evaluation_running, 
+                     use_container_width=True, type="primary"):
+            start_evaluation(persona, environments, num_envs, num_questions)
+            st.rerun()
+
+    with col2:
+        if st.button("🔄 Reset", disabled=st.session_state.evaluation_running, use_container_width=True):
+            if not (st.session_state.evaluation_thread and st.session_state.evaluation_thread.is_alive()):
+                st.session_state.clear()
+                LOG_COLLECTOR.clear()
+                st.rerun()
+    
+    with col3:
+        if st.session_state.evaluation_running:
+            st.info("🔄 Running...")
+        elif st.session_state.evaluation_error:
+            st.error(f"❌ {st.session_state.evaluation_error}")
+
+    st.divider()
+
+    # Logs
+    render_live_logs()
+    
+    # Auto-refresh
+    if st.session_state.evaluation_running:
+        time.sleep(refresh_rate)
+        st.rerun()
+    
+    st.divider()
+
+    # Results
+    if st.session_state.evaluation_results:
+        render_results_dashboard(st.session_state.persona_score, st.session_state.evaluation_results)
+
+    st.divider()
+    st.caption(f"Updated: {datetime.now().strftime('%H:%M:%S')}")
 
 if __name__ == "__main__":
     main()
