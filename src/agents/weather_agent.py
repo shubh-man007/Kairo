@@ -32,7 +32,7 @@ class WeatherAgent(BaseAgent):
         question: Question,
     ) -> AgentResponse:
         logger.info(
-            f"WeatherAgent responding to question: {question.text[:50]}..."
+            f"WeatherAgent responding to question: {question.text}"
         )
 
         location = self._extract_location(question.text)

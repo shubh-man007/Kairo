@@ -45,7 +45,7 @@ class ExampleGenerator:
         """
         logger.info(
             f"Generating examples for persona={persona.name}, "
-            f"task={rubric.task_name}, question={question.text[:50]}..."
+            f"task={rubric.task_name}, question={question.text}"
         )
 
         # Format persona description

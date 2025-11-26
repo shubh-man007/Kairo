@@ -1110,8 +1110,21 @@ def evaluation_worker(persona, environments, num_envs, num_questions):
 
         weather_agent = WeatherAgent(llm_client=agent_client)
 
-        evaluator1 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_1, temperature=0.0))
-        evaluator2 = LLMEvaluator(llm_client=create_llm_client("openai", settings.evaluator_model_2, temperature=0.0))
+        evaluator1 = LLMEvaluator(
+            llm_client=create_llm_client(
+                "openai",
+                settings.evaluator_model_1,
+                temperature=0.0,
+            )
+        )
+        evaluator2 = LLMEvaluator(
+            llm_client=create_llm_client(
+                # Second evaluator uses Anthropic / Claude by default.
+                "anthropic",
+                settings.evaluator_model_2,
+                temperature=0.0,
+            )
+        )
         ensemble = EnsembleEvaluator([evaluator1, evaluator2])
 
         orchestrator = EvaluationOrchestrator(

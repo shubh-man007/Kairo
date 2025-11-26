@@ -141,8 +141,9 @@ def test_phase3(persona, question):
         print("\n[INFO] Testing ensemble evaluator...")
         evaluator2 = LLMEvaluator(
             llm_client=create_llm_client(
-                provider="openai",
-                model=settings.evaluator_model_1,
+                # Second evaluator uses Anthropic / Claude by default.
+                provider="anthropic",
+                model=settings.evaluator_model_2,
                 temperature=0.0,
             )
         )
@@ -236,8 +237,9 @@ def test_pipeline(persona, environments):
         )
         evaluator2 = LLMEvaluator(
             llm_client=create_llm_client(
-                provider="openai",
-                model=settings.evaluator_model_1,
+                # Second evaluator uses Anthropic / Claude by default.
+                provider="anthropic",
+                model=settings.evaluator_model_2,
                 temperature=0.0,
             )
         )

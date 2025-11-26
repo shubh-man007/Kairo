@@ -10,10 +10,10 @@ class Settings:
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
-    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+    anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
 
     evaluator_model_1: str = os.getenv("EVALUATOR_MODEL_1", "gpt-4o-mini")
-    evaluator_model_2: str = os.getenv("EVALUATOR_MODEL_2", "claude-3-5-sonnet-20241022")
+    evaluator_model_2: str = os.getenv("EVALUATOR_MODEL_2", "claude-sonnet-4-5-20250929")
     generator_model: str = os.getenv("GENERATOR_MODEL", "gpt-4o-mini")
     generator_temperature: float = float(os.getenv("GENERATOR_TEMPERATURE", "0.9"))
     evaluator_temperature: float = float(os.getenv("EVALUATOR_TEMPERATURE", "0.0"))

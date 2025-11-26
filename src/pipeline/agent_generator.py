@@ -19,7 +19,7 @@ class AgentGenerator:
     
         logger.info(
             f"Generating response for persona={persona.name}, "
-            f"question={question.text[:50]}..."
+            f"question={question.text}"
         )
 
         system_prompt = self._build_system_prompt(persona)

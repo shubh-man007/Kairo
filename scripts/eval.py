@@ -75,11 +75,12 @@ def main():
             temperature=0.0,
         )
     )
-    
+
     evaluator2 = LLMEvaluator(
         llm_client=create_llm_client(
-            provider="openai",
-            model=settings.evaluator_model_1,  
+            # Use Anthropic (Claude) for the second evaluator by default.
+            provider="anthropic",
+            model=settings.evaluator_model_2,
             temperature=0.0,
         )
     )
@@ -123,8 +124,8 @@ def main():
         print(f"\n[INFO] Sample results:")
         for i, result in enumerate(results[:3], 1):
             print(f"\n  Result {i}:")
-            print(f"    Question: {result.question_text[:80]}...")
-            print(f"    Response: {result.response_text[:80]}...")
+            print(f"    Question: {result.question_text}")
+            print(f"    Response: {result.response_text}")
             if result.task_scores:
                 print(f"    Score: {result.task_scores[0].score:.2f}/5.0")
 

@@ -80,11 +80,11 @@ class TestAnthropicClient:
         mock_anthropic_class.return_value = mock_client_instance
 
         client = AnthropicClient(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             temperature=0.0,
             api_key="test-key",
         )
-        assert client.model == "claude-3-5-sonnet-20241022"
+        assert client.model == "claude-sonnet-4-5-20250929"
         assert client.temperature == 0.0
         assert client.api_key == "test-key"
 
@@ -109,7 +109,7 @@ class TestAnthropicClient:
         mock_settings = Mock()
         mock_settings.anthropic_api_key = ""  # Empty Anthropic key
         mock_settings.openai_api_key = "test-openai-key"  # Set OpenAI key so validate() passes
-        mock_settings.anthropic_model = "claude-3-5-sonnet-20241022"
+        mock_settings.anthropic_model = "claude-sonnet-4-5-20250929"
         mock_get_settings.return_value = mock_settings
         with pytest.raises(ValueError, match="Anthropic API key is required"):
             AnthropicClient()
@@ -141,12 +141,12 @@ class TestLLMClientFactory:
 
         client = LLMClientFactory.create(
             provider="anthropic",
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-5-20250929",
             temperature=0.0,
             api_key="test-key",
         )
         assert isinstance(client, AnthropicClient)
-        assert client.model == "claude-3-5-sonnet-20241022"
+        assert client.model == "claude-sonnet-4-5-20250929"
 
     def test_create_invalid_provider(self):
         """Test that invalid provider raises error."""
