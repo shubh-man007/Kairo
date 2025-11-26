@@ -36,7 +36,7 @@ def setup_logging(
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
-    console_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    console_format = logging.Formatter("%(message)s")
     console_handler.setFormatter(console_format)
     root_logger.addHandler(console_handler)
 
@@ -44,7 +44,7 @@ def setup_logging(
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(log_level)
         file_format = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(message)s"
         )
         file_handler.setFormatter(file_format)
         root_logger.addHandler(file_handler)

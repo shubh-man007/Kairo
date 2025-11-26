@@ -100,15 +100,15 @@ def main():
     print(">> Starting Evaluation")
     print("\n[INFO] Running evaluation with:")
     print(f"  - Persona: {persona.name}")
-    print(f"  - Environments: 2 (reduced for testing)")
-    print(f"  - Questions per task: 2 (reduced for testing)")
+    print(f"  - Environments: 1 (reduced for testing)")
+    print(f"  - Questions per task: 1 (reduced for testing)")
     print(f"  - Total tasks: 5")
 
     try:
         results, persona_score = orchestrator.evaluate_persona_with_score(
             persona=persona,
-            num_environments=2,  
-            num_questions_per_task=2,  
+            num_environments=1,  
+            num_questions_per_task=1,  
         )
 
         print(">> Evaluation Results")
